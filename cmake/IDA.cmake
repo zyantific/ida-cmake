@@ -29,10 +29,11 @@ cmake_policy(SET CMP0054 NEW)
 # Overridable options                                                                             #
 # =============================================================================================== #
 
-set(IDA_ARCH_64     False CACHE BOOL "Build for 64 bit IDA"                       )
-set(IDA_SDK_PATH    ""    CACHE PATH "Path to IDA SDK"                            )
-set(IDA_INSTALL_DIR ""    CACHE PATH "Install path of IDA"                        )
-set(IDA_VERSION     690   CACHE INT  "IDA Version to build for (e.g. 6.9 is 690).")
+set(IDA_ARCH_64           OFF   CACHE BOOL "Build for 64 bit IDA"                       )
+set(IDA_SDK_PATH          ""    CACHE PATH "Path to IDA SDK"                            )
+set(IDA_INSTALL_DIR       ""    CACHE PATH "Install path of IDA"                        )
+set(IDA_VERSION           690   CACHE INT  "IDA Version to build for (e.g. 6.9 is 690).")
+set(IDA_ENABLE_QT_SUPPORT OFF   CACHE BOOL "Enable support for building plugins with Qt")
 
 # =============================================================================================== #
 # General preparation                                                                             #
