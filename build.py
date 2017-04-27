@@ -6,7 +6,7 @@
 
     The MIT License (MIT)
 
-    Copyright (c) 2017 Joel Höner <athre0z@zyantific.com>
+    Copyright (c) 2017 Joel Hoener <athre0z@zyantific.com>
     
     Permission is hereby granted, free of charge, to any person obtaining a copy
     of this software and associated documentation files (the "Software"), to deal
