@@ -170,6 +170,16 @@ if (IDA_ENABLE_QT_SUPPORT)
                 break()
             endforeach()
         endforeach()
+    elseif (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
+        if (ida_qt_major EQUAL 5)
+            foreach(qtlib Gui;Core;Widgets)
+                set(IDA_Qt${qtlib}_LIBRARY ${IDA_INSTALL_DIR}/libQt5${qtlib}.so.5 CACHE FILEPATH "Path to IDA's Qt${qtlib}")
+            endforeach()
+        else ()
+            foreach(qtlib Gui;Core)
+                set(IDA_Qt${qtlib}_LIBRARY ${IDA_INSTALL_DIR}/libQt{qtlib}.so.4 CACHE FILEPATH "Path to IDA's Qt${qtlib}")
+            endforeach()
+        endif()
     endif()
 
     # Locate Qt.
@@ -259,7 +269,8 @@ function (add_ida_qt_plugin plugin_name)
         foreach (qtlib Core;Gui)
             target_link_libraries(${CMAKE_PROJECT_NAME} "Qt4::Qt${qtlib}")
             # On macs, we need to link to the frameworks in the IDA application folder
-            if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+            if ((${CMAKE_SYSTEM_NAME} MATCHES "Darwin") OR
+                    (${CMAKE_SYSTEM_NAME} MATCHES "Linux"))
                 set_target_properties(
                     "Qt4::Qt${qtlib}" 
                     PROPERTIES 
@@ -269,7 +280,8 @@ function (add_ida_qt_plugin plugin_name)
     else ()
         foreach (qtlib Core;Widgets;Gui)
             target_link_libraries(${CMAKE_PROJECT_NAME} "Qt5::${qtlib}")
-            if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+            if ((${CMAKE_SYSTEM_NAME} MATCHES "Darwin") OR
+                    (${CMAKE_SYSTEM_NAME} MATCHES "Linux"))
                 set_target_properties(
                     "Qt5::${qtlib}"
                     PROPERTIES 
