@@ -173,11 +173,15 @@ if (IDA_ENABLE_QT_SUPPORT)
     elseif (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
         if (ida_qt_major EQUAL 5)
             foreach(qtlib Gui;Core;Widgets)
-                set(IDA_Qt${qtlib}_LIBRARY ${IDA_INSTALL_DIR}/libQt5${qtlib}.so.5 CACHE FILEPATH "Path to IDA's Qt${qtlib}")
+                set(IDA_Qt${qtlib}_LIBRARY 
+                    "${IDA_INSTALL_DIR}/libQt5${qtlib}.so.5"
+                    CACHE FILEPATH "Path to IDA's Qt ${qtlib}")
             endforeach()
         else ()
             foreach(qtlib Gui;Core)
-                set(IDA_Qt${qtlib}_LIBRARY ${IDA_INSTALL_DIR}/libQt{qtlib}.so.4 CACHE FILEPATH "Path to IDA's Qt${qtlib}")
+                set(IDA_Qt${qtlib}_LIBRARY 
+                    "${IDA_INSTALL_DIR}/libQt{qtlib}.so.4"
+                    CACHE FILEPATH "Path to IDA's Qt ${qtlib}")
             endforeach()
         endif()
     endif()
