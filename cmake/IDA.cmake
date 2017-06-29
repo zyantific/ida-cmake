@@ -231,7 +231,7 @@ function (add_ida_plugin plugin_name)
         # When generating for Visual Studio, 
         # generate user file for convenient debugging support.
         configure_file(
-            "cmake/template.vcxproj.user" 
+            "template.vcxproj.user" 
             "${plugin_name}.vcxproj.user" 
             @ONLY)
     endif ()
@@ -249,10 +249,12 @@ function (add_ida_qt_plugin plugin_name)
         list(REMOVE_AT sources 0)
     endif ()
 
-    # Divide between UI files and regular C/C++ sources. 
+    # Divide between UI and resource files and regular C/C++ sources. 
     foreach (cur_file ${sources})
         if (${cur_file} MATCHES ".*\\.ui")
-            list(APPEND ui_sources "${cur_file}")
+            list(APPEND ui_sources ${cur_file})
+        elseif (${cur_file} MATCHES ".*\\.qrc")
+            list(APPEND rsrc_sources ${cur_file})
         else ()
             list(APPEND non_ui_sources ${cur_file})
         endif ()
@@ -265,8 +267,15 @@ function (add_ida_qt_plugin plugin_name)
         QT5_WRAP_UI(form_headers ${ui_sources})
     endif ()
 
+    # Compile resources.
+    if (ida_qt_major EQUAL 4)
+        QT4_ADD_RESOURCES(rsrc_headers ${rsrc_sources})
+    else ()
+        QT5_ADD_RESOURCES(rsrc_headers ${rsrc_sources})
+    endif ()
+
     # Add plugin.
-    add_ida_plugin(${plugin_name} ${non_ui_sources} ${form_headers})
+    add_ida_plugin(${plugin_name} ${non_ui_sources} ${form_headers} ${rsrc_headers})
 
     # Link against Qt.
     if (ida_qt_major EQUAL 4)
@@ -282,7 +291,7 @@ function (add_ida_qt_plugin plugin_name)
             endif ()
         endforeach()
     else ()
-        foreach (qtlib Core;Widgets;Gui)
+        foreach (qtlib Widgets)
             target_link_libraries(${CMAKE_PROJECT_NAME} "Qt5::${qtlib}")
             if ((${CMAKE_SYSTEM_NAME} MATCHES "Darwin") OR
                     (${CMAKE_SYSTEM_NAME} MATCHES "Linux"))

@@ -30,6 +30,7 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 import os
 import errno
 import argparse
+import glob
 
 from subprocess import Popen, PIPE
 from distutils.spawn import find_executable
@@ -48,10 +49,12 @@ def get_cmake_gen(platform, cur_target):
         raise Exception('Unknown platform "%s"' % platform)
 
 
-def get_build_solution_arguments(platform):
+def get_build_solution_arguments(platform, build_dir):
     build_bin = get_build_cmd(platform)
     if platform == 'win':
-        return [build_bin, 'IDASkins.sln', '/p:Configuration=Release']
+        sln, = glob.glob(os.path.join(build_dir, '*.sln'))
+        sln = os.path.basename(sln)
+        return [build_bin, sln, '/p:Configuration=Release']
     elif platform == 'unix':
         # Speed things up a little.
         from multiprocessing import cpu_count
@@ -139,7 +142,6 @@ if __name__ == '__main__':
                 if e.errno != errno.EEXIST:
                     raise
 
-
             # Run cmake
             cmake_cmd = [
                 cmake_bin,
@@ -164,9 +166,8 @@ if __name__ == '__main__':
                 print('[-] CMake failed, giving up.')
                 exit()
 
-
             # Build plugin
-            proc = Popen(get_build_solution_arguments(args.platform), cwd=build_dir)
+            proc = Popen(get_build_solution_arguments(args.platform, build_dir), cwd=build_dir)
             if proc.wait() != 0:
                 print('[-] Build failed, giving up.')
                 exit()
