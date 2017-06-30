@@ -39,6 +39,9 @@ set(IDA_ENABLE_QT_SUPPORT OFF   CACHE BOOL "Enable support for building plugins 
 # General preparation                                                                             #
 # =============================================================================================== #
 
+# We need to save our path here so we have it available in functions later on.
+set(ida_cmakelist_path ${CMAKE_CURRENT_LIST_DIR})
+
 # Compiler specific switches
 if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" OR
         "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang" OR
@@ -231,7 +234,7 @@ function (add_ida_plugin plugin_name)
         # When generating for Visual Studio, 
         # generate user file for convenient debugging support.
         configure_file(
-            "template.vcxproj.user" 
+            "${ida_cmakelist_path}/template.vcxproj.user" 
             "${plugin_name}.vcxproj.user" 
             @ONLY)
     endif ()
