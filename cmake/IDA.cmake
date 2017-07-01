@@ -30,7 +30,7 @@ cmake_policy(SET CMP0054 NEW)
 # =============================================================================================== #
 
 set(IDA_ARCH_64           OFF   CACHE BOOL "Build for 64 bit IDA"                       )
-set(IDA_SDK_PATH          ""    CACHE PATH "Path to IDA SDK"                            )
+set(IDA_SDK               ""    CACHE PATH "Path to IDA SDK"                            )
 set(IDA_INSTALL_DIR       ""    CACHE PATH "Install path of IDA"                        )
 set(IDA_VERSION           690   CACHE INT  "IDA Version to build for (e.g. 6.9 is 690).")
 set(IDA_ENABLE_QT_SUPPORT OFF   CACHE BOOL "Enable support for building plugins with Qt")
@@ -230,9 +230,19 @@ function (add_ida_plugin plugin_name)
     # Define install rule
     install(TARGETS ${plugin_name} DESTINATION plugins)
 
+    # When generating for Visual Studio, 
+    # generate user file for convenient debugging support.
     if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
-        # When generating for Visual Studio, 
-        # generate user file for convenient debugging support.
+        if (IDA_ARCH_64)
+            set(idaq_exe "idaq64.exe")
+        else ()
+            set(idaq_exe "idaq.exe")
+        endif ()
+
+        file(
+            TO_NATIVE_PATH 
+            "${IDA_INSTALL_DIR}/${idaq_exe}" 
+            idaq_exe_native_path)
         configure_file(
             "${ida_cmakelist_path}/template.vcxproj.user" 
             "${plugin_name}.vcxproj.user" 
