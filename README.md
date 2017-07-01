@@ -67,13 +67,9 @@ plugin_t PLUGIN =
 };
 ```
 
-##### Building the plugin for IDA 6.95 on macOS
+##### Building and installing the plugin for IDA 6.95 on macOS
 ```bash
-ida-cmake/build.py \
-    -i <ida-sdks-path> \
-    -p unix \
-    -t 6.95 \
+ida-cmake/build.py -i <ida-sdk-path> -t 6.95 \
     --idaq-path '/Applications/IDA Pro 6.95.app/Contents/MacOS/'
 ```
-Substitute `<ida-sdks-path>` with a directory you store your target IDA SDKs,
-named like `idasdk68`, `idasdk695`, etc..
+Substitute `<ida-sdks-path>` with a directory of the IDA SDK corresponding to your IDA version.
