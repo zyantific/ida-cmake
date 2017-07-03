@@ -42,75 +42,14 @@ set(IDA_ENABLE_QT_SUPPORT OFF   CACHE BOOL "Enable support for building plugins 
 # We need to save our path here so we have it available in functions later on.
 set(ida_cmakelist_path ${CMAKE_CURRENT_LIST_DIR})
 
-# Compiler specific switches
-if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" OR
-        "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang" OR
-        "${CMAKE_CXX_COMPILER_ID}" STREQUAL "AppleClang")
-    set(compiler_specific "-m32 -std=c++0x ")
-elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
-    set(compiler_specific "/WX /wd4996 /MP /D__VC__")
-
-    # Hack for MSVC to always use /MD, even when generating debug code
-    set(manipulated_vars
-        CMAKE_CXX_FLAGS_DEBUG
-        CMAKE_CXX_FLAGS_MINSIZEREL
-        CMAKE_CXX_FLAGS_RELEASE
-        CMAKE_CXX_FLAGS_RELWITHDEBINFO
-        CMAKE_C_FLAGS_DEBUG
-        CMAKE_C_FLAGS_MINSIZEREL
-        CMAKE_C_FLAGS_RELEASE
-        CMAKE_C_FLAGS_RELWITHDEBINFO)
-    foreach(cur_var ${manipulated_vars})
-        string(REGEX REPLACE "/(LD|(M(T|D)))d?( +|$)" "/MD " new_var ${${cur_var}})
-        string(REGEX REPLACE "(/|-)D *_DEBUG" "" new_var ${new_var})
-        set(${cur_var} ${new_var} CACHE STRING "" FORCE)
-    endforeach()
-endif ()
-
-# OS specific switches
-if (WIN32)
-    set(os_specific "-D_WIN32_WINNT=0x0501 -D__NT__")
-
-    if (IDA_ARCH_64)
-        set(plugin_extension ".p64")
-    else()
-        set(plugin_extension ".plw")
-    endif()
-elseif (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
-    set(os_specific "-D__MAC__ -D_FORTIFY_SOURCE=0")
-
-    if (IDA_ARCH_64)
-        set(plugin_extension ".pmc64")
-    else()
-        set(plugin_extension ".pmc")
-    endif()
-elseif (UNIX)
-    set(os_specific "-D__LINUX__")
-
-    if (IDA_ARCH_64)
-        set(plugin_extension ".plx64")
-    else()
-        set(plugin_extension ".plx")
-    endif()
-endif ()
-
-if (IDA_ARCH_64)
-    set(ida_lib_path_arch "64")
-    set(arch_specific "-D__EA64__")
-else ()
-    set(ida_lib_path_arch "32")
-endif ()
-
-set(plugin_extension "${plugin_extension}" CACHE INTERNAL "Plugin file extension" FORCE)
-set(other_defs "-DQT_NAMESPACE=QT -DNO_OBSOLETE_FUNCS -D__IDP__ -DQPROJECT_LIBRARY")
-
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${compiler_specific} ${os_specific} ${arch_specific} ${other_defs}"
-    CACHE STRING "Flags used by the compiler during all build types." FORCE)
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${compiler_specific} ${os_specific} ${arch_specific} ${other_defs}"
-    CACHE STRING "Flags used by the compiler during all build types." FORCE)
-
 # Library dependencies and include pathes
 if (WIN32)
+    if (IDA_ARCH_64)
+        set(ida_lib_path_arch "64")
+    else ()
+        set(ida_lib_path_arch "32")
+    endif ()
+
     # On Windows, we use HR's lib files shipped with the SDK.
     set(IDA_LIB_DIR "${IDA_SDK}/lib/x86_win_vc_${ida_lib_path_arch}"
         CACHE PATH "IDA SDK library path" FORCE)
@@ -128,6 +67,9 @@ if (WIN32)
         list(APPEND ida_libraries ${IDA_PRO_LIBRARY})
     endif ()
 elseif (UNIX)
+    set(CMAKE_C_FLAGS   "-m32" CACHE STRING "C compiler flags"   FORCE)
+    set(CMAKE_CXX_FLAGS "-m32" CACHE STRING "C++ compiler flags" FORCE)
+
     # On unixoid platforms, we link against IDA directly.
     if (IDA_ARCH_64)
         find_library(IDA_IDA_LIBRARY NAMES "ida64" PATHS ${IDA_INSTALL_DIR} REQUIRED)
@@ -138,13 +80,6 @@ elseif (UNIX)
 endif ()
 
 set(ida_libraries ${ida_libraries} CACHE INTERNAL "IDA libraries" FORCE)
-include_directories("${IDA_SDK}/include")
-
-if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" AND NOT IDA_INSTALL_DIR STREQUAL "")
-    # Normalize path.
-    file(TO_CMAKE_PATH ${IDA_INSTALL_DIR} ida_dir)
-    file(TO_NATIVE_PATH ${ida_dir} IDA_NATIVE_DIR)
-endif ()
 
 # =============================================================================================== #
 # Qt support                                                                                      #
@@ -162,8 +97,7 @@ if (IDA_ENABLE_QT_SUPPORT)
     endif ()
 
     # On macOS, we can look up the path of each Qt library inside the IDA installation.
-    # It might be possible to get this to work also on linux by parameterizing the file suffix.
-    if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+    if (${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
         foreach(qtlib Gui;Core;Widgets)
             file(GLOB_RECURSE qtlibpaths "${IDA_INSTALL_DIR}/../Frameworks/Qt${qtlib}")
             # Typically we will find exactly 2 paths to the libfile on macOS because of 
@@ -173,7 +107,7 @@ if (IDA_ENABLE_QT_SUPPORT)
                 break()
             endforeach()
         endforeach()
-    elseif (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
+    elseif (${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
         if (ida_qt_major EQUAL 5)
             foreach(qtlib Gui;Core;Widgets)
                 set(IDA_Qt${qtlib}_LIBRARY 
@@ -195,16 +129,6 @@ if (IDA_ENABLE_QT_SUPPORT)
     else ()
         find_package(Qt5Widgets REQUIRED)
     endif ()
-
-    # Hack Qt to use release libraries even when generating debug binaries
-    # for compatibility with IDA.
-    get_cmake_property(all_vars VARIABLES)
-    foreach(cur_var ${all_vars})
-        string(REGEX MATCH "^(QT_.*LIBRARY)$" lib_match ${cur_var})
-        if (lib_match)
-            set(${lib_match} "${lib_match}_RELEASE")
-        endif()
-    endforeach()
 endif ()
 
 # =============================================================================================== #
@@ -220,11 +144,58 @@ function (add_ida_plugin plugin_name)
     # Define target
     string(STRIP "${sources}" sources)
     add_library(${plugin_name} SHARED ${sources})
+
+    # Compiler specific properties.
+    if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+        target_compile_definitions(${plugin_name} PUBLIC "__VC__")
+        target_compile_options(${plugin_name} PUBLIC "/wd4996" "/MP")
+    endif ()
+
+    # General definitions required throughout all kind of IDA modules.
+    target_compile_definitions(${plugin_name} PUBLIC
+        "NO_OBSOLETE_FUNCS"
+        "__IDP__")
+
+    target_include_directories(${plugin_name} PUBLIC "${IDA_SDK}/include")
+
+    # OS specific stuff.
+    if (${CMAKE_SYSTEM_NAME} STREQUAL "Windows")
+        target_compile_definitions(${plugin_name} PUBLIC "__NT__")
+
+        if (IDA_ARCH_64)
+            set(plugin_extension ".p64")
+        else()
+            set(plugin_extension ".plw")
+        endif()
+    elseif (${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
+        target_compile_definitions(${plugin_name} PUBLIC "__MAC__")
+
+        if (IDA_ARCH_64)
+            set(plugin_extension ".pmc64")
+        else()
+            set(plugin_extension ".pmc")
+        endif()
+    elseif (${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
+        target_compile_definitions(${plugin_name} PUBLIC "__LINUX__")
+
+        if (IDA_ARCH_64)
+            set(plugin_extension ".plx64")
+        else()
+            set(plugin_extension ".plx")
+        endif()
+    endif ()
+
+    # Suppress "lib" prefix on Unix and alter the file extension.
     set_target_properties(${plugin_name} PROPERTIES
         PREFIX ""
         SUFFIX ${plugin_extension}
         OUTPUT_NAME ${plugin_name})
 
+    if (IDA_ARCH_64)
+        target_compile_definitions(${plugin_name} PUBLIC "__EA64__")
+    endif ()
+
+    # Link against IDA (or the SDKs libs on Windows).
     target_link_libraries(${plugin_name} ${ida_libraries})
 
     # Define install rule
@@ -250,11 +221,9 @@ function (add_ida_plugin plugin_name)
     endif ()
 endfunction (add_ida_plugin)
 
-
 # =============================================================================================== #
 # Functions for adding IDA plugin targets with Qt support                                         #
 # =============================================================================================== #
-
 
 function (add_ida_qt_plugin plugin_name)
     set(sources ${ARGV})
@@ -289,14 +258,15 @@ function (add_ida_qt_plugin plugin_name)
 
     # Add plugin.
     add_ida_plugin(${plugin_name} ${non_ui_sources} ${form_headers} ${rsrc_headers})
+    target_compile_definitions(${plugin_name} PUBLIC "QT_NAMESPACE=QT")
 
     # Link against Qt.
     if (ida_qt_major EQUAL 4)
         foreach (qtlib Core;Gui)
             target_link_libraries(${CMAKE_PROJECT_NAME} "Qt4::Qt${qtlib}")
             # On macs, we need to link to the frameworks in the IDA application folder
-            if ((${CMAKE_SYSTEM_NAME} MATCHES "Darwin") OR
-                    (${CMAKE_SYSTEM_NAME} MATCHES "Linux"))
+            if ((${CMAKE_SYSTEM_NAME} STREQUAL "Darwin") OR
+                    (${CMAKE_SYSTEM_NAME} STREQUAL "Linux"))
                 set_target_properties(
                     "Qt4::Qt${qtlib}" 
                     PROPERTIES 
@@ -304,10 +274,10 @@ function (add_ida_qt_plugin plugin_name)
             endif ()
         endforeach()
     else ()
-        foreach (qtlib Widgets)
+        foreach (qtlib Core;Gui;Widgets)
             target_link_libraries(${CMAKE_PROJECT_NAME} "Qt5::${qtlib}")
-            if ((${CMAKE_SYSTEM_NAME} MATCHES "Darwin") OR
-                    (${CMAKE_SYSTEM_NAME} MATCHES "Linux"))
+            if ((${CMAKE_SYSTEM_NAME} STREQUAL "Darwin") OR
+                    (${CMAKE_SYSTEM_NAME} STREQUAL "Linux"))
                 set_target_properties(
                     "Qt5::${qtlib}"
                     PROPERTIES 
