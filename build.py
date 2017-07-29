@@ -40,9 +40,10 @@ def get_cmake_gen(target_version):
     if os.name == 'posix':
         return 'Unix Makefiles'
     elif os.name == 'nt':
-        return 'Visual Studio ' + (
+        gen = 'Visual Studio ' + (
             '10' if target_version[0] <= 6 and target_version[1] <= 8 else '14'
         )
+        return (gen + ' Win64') if target_version >= (7, 0) else gen
     else:
         assert False
 
@@ -93,8 +94,9 @@ if __name__ == '__main__':
 
     )
     target_args.add_argument(
-        '--arch', '-a', required=False, choices=[32, 64], type=int,
-        help='The IDA architecture to build for. If omitted, build both.'
+        '--ea', required=False, choices=[32, 64], type=int,
+        help='The IDA variant (ida/ida64, sizeof(ea_t) == 4/8) to build for. '
+             'If omitted, build both.'
     )
 
     parser.add_argument(
@@ -141,8 +143,8 @@ if __name__ == '__main__':
     #
     # Build targets
     #
-    for arch in (args.arch,) if args.arch else (32, 64):
-        build_dir = 'build-{}.{}-{}'.format(*(target_version + (arch,)))
+    for ea in (args.ea,) if args.ea else (32, 64):
+        build_dir = 'build-{}.{}-{}'.format(*(target_version + (ea,)))
         try:
             os.mkdir(build_dir)
         except OSError as e:
@@ -155,14 +157,15 @@ if __name__ == '__main__':
             '-DIDA_SDK=' + args.ida_sdk,
             '-G', get_cmake_gen(target_version),
             '-DIDA_VERSION={}{:02}'.format(*target_version),
+            '-DIDA_BINARY_64=' + ('ON' if target_version >= (7, 0) else 'OFF')
         ]
 
         if args.idaq_path:
             cmake_cmd.append('-DIDA_INSTALL_DIR=' + args.idaq_path)
             cmake_cmd.append('-DCMAKE_INSTALL_PREFIX=' + args.idaq_path)
 
-        if arch == 64:
-            cmake_cmd.append('-DIDA_ARCH_64=TRUE')
+        if ea == 64:
+            cmake_cmd.append('-DIDA_EA_64=TRUE')
 
         cmake_cmd.append('..')
 
