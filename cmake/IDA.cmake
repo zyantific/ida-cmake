@@ -40,6 +40,10 @@ set(IDA_ENABLE_QT_SUPPORT OFF   CACHE BOOL "Enable support for building plugins 
 # General preparation                                                                             #
 # =============================================================================================== #
 
+if (IDA_VERSION LESS 690)
+    message(FATAL_ERROR "IDA versions below 6.9 are no longer supported.")
+endif ()
+
 # We need to save our path here so we have it available in functions later on.
 set(ida_cmakelist_path ${CMAKE_CURRENT_LIST_DIR})
 
@@ -98,23 +102,16 @@ if (IDA_ENABLE_QT_SUPPORT)
     set(CMAKE_AUTOMOC ON)
     set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
-    # IDA 6.9 and above use Qt5, older versions Qt4.
-    if (IDA_VERSION LESS 690)
-        set(ida_qt_major 4)
-    else ()
-        set(ida_qt_major 5)
-    endif ()
+    set(ida_qt_libs "Gui;Core;Widgets")
+
+    # Locate Qt.
+    find_package(Qt5Widgets REQUIRED)
 
     # On unixes, we link against the Qt libs that ship with IDA.
     # On Windows with IDA versions >= 7.0, link against .libs in IDA SDK.
     if (${CMAKE_SYSTEM_NAME} STREQUAL "Darwin" OR ${CMAKE_SYSTEM_NAME} STREQUAL "Linux" OR
         (${CMAKE_SYSTEM_NAME} STREQUAL "Windows" AND NOT ${IDA_VERSION} LESS 700))
-        if (ida_qt_major EQUAL 5)
-            set(ida_qt_libs "Gui;Core;Widgets;PrintSupport")
-        else ()
-            set(ida_qt_libs "Gui;Core")
-        endif ()
-
+        
         if (${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
             set(ida_qt_glob_path "${IDA_INSTALL_DIR}/../Frameworks/Qt@QTLIB@")
         elseif (${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
@@ -133,13 +130,20 @@ if (IDA_ENABLE_QT_SUPPORT)
                 break()
             endforeach()
         endforeach()
-    endif ()
 
-    # Locate Qt.
-    if (ida_qt_major EQUAL 4)
-        find_package(Qt4 REQUIRED QtCore QtGui)
-    else ()
-        find_package(Qt5Widgets REQUIRED)
+        # On Windows, we hack Qt's "IMPLIB"s, on unix the .so location.
+        if (${CMAKE_SYSTEM_NAME} STREQUAL "Windows")
+            set(lib_property "IMPORTED_IMPLIB_RELEASE")
+        else ()
+            set(lib_property "IMPORTED_LOCATION_RELEASE")
+        endif ()
+
+        foreach (cur_lib ${ida_qt_libs})
+            set_target_properties(
+                "Qt5::${cur_lib}"
+                PROPERTIES 
+                ${lib_property} "${IDA_Qt${cur_lib}_LIBRARY}")
+        endforeach()
     endif ()
 endif ()
 
@@ -291,44 +295,23 @@ function (add_ida_qt_plugin plugin_name)
     endforeach ()
 
     # Compile UI files.
-    if (ida_qt_major EQUAL 4)
-        QT4_WRAP_UI(form_headers ${ui_sources})
-    else ()
-        QT5_WRAP_UI(form_headers ${ui_sources})
-    endif ()
+    QT5_WRAP_UI(form_headers ${ui_sources})
 
     # Compile resources.
-    if (ida_qt_major EQUAL 4)
-        QT4_ADD_RESOURCES(rsrc_headers ${rsrc_sources})
-    else ()
-        QT5_ADD_RESOURCES(rsrc_headers ${rsrc_sources})
-    endif ()
+    QT5_ADD_RESOURCES(rsrc_headers ${rsrc_sources})
 
     # Add plugin.
     add_ida_plugin(${plugin_name} ${non_ui_sources} ${form_headers} ${rsrc_headers})
     target_compile_definitions(${plugin_name} PUBLIC "QT_NAMESPACE=QT")
 
     # Link against Qt.
-    if (ida_qt_major EQUAL 4)
-        foreach (qtlib Core;Gui)
-            # If we have a QtCore override path, we have override pathes for all libs.
-            if (DEFINED IDA_QtCore_LIBRARY)
-                set_target_properties(
-                    "Qt4::Qt${qtlib}" 
-                    PROPERTIES 
-                    IMPORTED_LOCATION_RELEASE "${IDA_Qt${qtlib}_LIBRARY}")
-            endif ()
-            target_link_libraries(${CMAKE_PROJECT_NAME} "Qt4::Qt${qtlib}")
-        endforeach()
-    else ()
-        foreach (qtlib Core;Gui;Widgets)
-            if (DEFINED IDA_QtCore_LIBRARY)
-                set_target_properties(
-                    "Qt5::${qtlib}"
-                    PROPERTIES 
-                    IMPORTED_LOCATION_RELEASE "${IDA_Qt${qtlib}_LIBRARY}")
-            endif ()
-            target_link_libraries(${CMAKE_PROJECT_NAME} "Qt5::${qtlib}")
-        endforeach()
-    endif ()
+    foreach (qtlib Core;Gui;Widgets)
+        if (DEFINED IDA_QtCore_LIBRARY)
+            set_target_properties(
+                "Qt5::${qtlib}"
+                PROPERTIES 
+                IMPORTED_LOCATION_RELEASE "${IDA_Qt${qtlib}_LIBRARY}")
+        endif ()
+        target_link_libraries(${CMAKE_PROJECT_NAME} "Qt5::${qtlib}")
+    endforeach()
 endfunction ()

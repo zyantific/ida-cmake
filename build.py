@@ -183,7 +183,7 @@ if __name__ == '__main__':
             print('[-] Build failed, giving up.')
             exit()
 
-        if not args.skip_install or not args.idaq_path:
+        if not args.skip_install and args.idaq_path:
             # Install plugin
             proc = Popen(get_install_solution_arguments(), cwd=build_dir)
             if proc.wait() != 0:
